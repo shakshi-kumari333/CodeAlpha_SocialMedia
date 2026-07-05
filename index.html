@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Connectify - Feed</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<nav class="navbar" id="navbar"></nav>
+
+<div class="container">
+  <div class="composer" id="composer" style="display:none;">
+    <textarea id="post-content" placeholder="What's on your mind?"></textarea>
+    <div class="composer-footer">
+      <button class="btn" id="post-btn">Post</button>
+    </div>
+    <p class="error-msg" id="post-error"></p>
+  </div>
+  <div id="login-prompt" style="display:none;" class="hint">
+    <a href="login.html" style="color:#7c3aed;">Log in</a> to share what's on your mind.
+  </div>
+
+  <h1 class="section-title">Feed</h1>
+  <div id="feed-container"><p>Loading...</p></div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/posts.js"></script>
+<script>
+const user = getUser();
+if (user) {
+  document.getElementById('composer').style.display = 'block';
+} else {
+  document.getElementById('login-prompt').style.display = 'block';
+}
+
+document.getElementById('post-btn')?.addEventListener('click', async () => {
+  const textarea = document.getElementById('post-content');
+  const errorEl = document.getElementById('post-error');
+  const content = textarea.value.trim();
+  if (!content) return;
+
+  try {
+    await apiFetch('/posts', { method: 'POST', body: JSON.stringify({ content }) });
+    textarea.value = '';
+    errorEl.textContent = '';
+    loadFeed();
+  } catch (err) {
+    errorEl.textContent = err.message;
+  }
+});
+
+async function loadFeed() {
+  const container = document.getElementById('feed-container');
+  try {
+    const posts = await apiFetch('/posts');
+    if (posts.length === 0) {
+      container.innerHTML = '<p class="empty-state">No posts yet. Be the first to share something!</p>';
+      return;
+    }
+    container.innerHTML = posts.map(postCardHTML).join('');
+  } catch (err) {
+    container.innerHTML = `<p class="error-msg">${err.message}</p>`;
+  }
+}
+
+loadFeed();
+</script>
+</body>
+</html>

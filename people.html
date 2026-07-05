@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>People - Connectify</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<nav class="navbar" id="navbar"></nav>
+
+<div class="container">
+  <h1 class="section-title">Find People</h1>
+  <input
+    type="text"
+    id="search-box"
+    placeholder="Search by name..."
+    style="padding:0.6rem;border:1px solid #e2e8f0;border-radius:8px;width:100%;margin-bottom:1rem;"
+  />
+  <div id="people-container"><p>Loading...</p></div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+const currentUser = getUser();
+
+async function loadPeople(search = '') {
+  const container = document.getElementById('people-container');
+  try {
+    const query = search ? `?search=${encodeURIComponent(search)}` : '';
+    const users = await apiFetch(`/users${query}`);
+    const others = users.filter((u) => !currentUser || u.id !== currentUser.id);
+
+    if (others.length === 0) {
+      container.innerHTML = '<p class="empty-state">No users found.</p>';
+      return;
+    }
+
+    container.innerHTML = others
+      .map(
+        (u) => `
+      <div class="user-card">
+        <a href="profile.html?id=${u.id}"><img class="avatar" src="${u.avatar}"/></a>
+        <div class="info">
+          <a href="profile.html?id=${u.id}" style="font-weight:600;">${u.name}</a>
+          <div class="hint" style="margin:0;">${u.followerCount} followers · ${u.postCount} posts</div>
+        </div>
+        ${
+          currentUser
+            ? `<button class="btn btn-sm ${u.isFollowedByMe ? 'btn-outline' : ''}" onclick="toggleFollow(${u.id}, this)">${u.isFollowedByMe ? 'Following' : 'Follow'}</button>`
+            : ''
+        }
+      </div>`
+      )
+      .join('');
+  } catch (err) {
+    container.innerHTML = `<p class="error-msg">${err.message}</p>`;
+  }
+}
+
+async function toggleFollow(userId, btn) {
+  try {
+    const result = await apiFetch(`/users/${userId}/follow`, { method: 'POST' });
+    btn.textContent = result.following ? 'Following' : 'Follow';
+    btn.classList.toggle('btn-outline', result.following);
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+document.getElementById('search-box').addEventListener('input', (e) => loadPeople(e.target.value));
+loadPeople();
+</script>
+</body>
+</html>

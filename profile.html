@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Profile - Connectify</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<nav class="navbar" id="navbar"></nav>
+
+<div class="container">
+  <div id="profile-header"><p>Loading...</p></div>
+  <div id="bio-editor" style="display:none;margin-bottom:1.5rem;">
+    <textarea id="bio-input" class="form-group" style="width:100%;padding:0.6rem;border:1px solid #e2e8f0;border-radius:8px;" placeholder="Write a short bio..."></textarea>
+    <button class="btn btn-sm" style="margin-top:0.5rem;" id="save-bio-btn">Save Bio</button>
+  </div>
+  <h2 class="section-title">Posts</h2>
+  <div id="posts-container"><p>Loading...</p></div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/posts.js"></script>
+<script>
+const params = new URLSearchParams(window.location.search);
+const profileId = Number(params.get('id'));
+const currentUser = getUser();
+
+async function loadProfile() {
+  const header = document.getElementById('profile-header');
+  try {
+    const profile = await apiFetch(`/users/${profileId}`);
+    const isMe = currentUser && currentUser.id === profile.id;
+
+    header.innerHTML = `
+      <div class="profile-header">
+        <img class="avatar-lg" src="${profile.avatar}"/>
+        <div>
+          <h1>${profile.name}</h1>
+          <p class="profile-bio">${profile.bio || 'No bio yet.'}</p>
+          <div class="profile-stats">
+            <span><b>${profile.postCount}</b> posts</span>
+            <span><b>${profile.followerCount}</b> followers</span>
+            <span><b>${profile.followingCount}</b> following</span>
+          </div>
+          <div style="margin-top:0.7rem;">
+            ${
+              isMe
+                ? `<button class="btn btn-sm btn-outline" id="edit-bio-btn">Edit Bio</button>`
+                : currentUser
+                ? `<button class="btn btn-sm ${profile.isFollowedByMe ? 'btn-outline' : ''}" id="follow-btn">${profile.isFollowedByMe ? 'Following' : 'Follow'}</button>`
+                : ''
+            }
+          </div>
+        </div>
+      </div>
+    `;
+
+    if (isMe) {
+      document.getElementById('edit-bio-btn').addEventListener('click', () => {
+        document.getElementById('bio-editor').style.display = 'block';
+        document.getElementById('bio-input').value = profile.bio || '';
+      });
+      document.getElementById('save-bio-btn').addEventListener('click', async () => {
+        try {
+          await apiFetch('/users/me', {
+            method: 'PUT',
+            body: JSON.stringify({ bio: document.getElementById('bio-input').value }),
+          });
+          document.getElementById('bio-editor').style.display = 'none';
+          loadProfile();
+        } catch (err) {
+          alert(err.message);
+        }
+      });
+    } else if (currentUser) {
+      document.getElementById('follow-btn').addEventListener('click', async () => {
+        try {
+          await apiFetch(`/users/${profileId}/follow`, { method: 'POST' });
+          loadProfile();
+        } catch (err) {
+          alert(err.message);
+        }
+      });
+    }
+  } catch (err) {
+    header.innerHTML = `<p class="error-msg">${err.message}</p>`;
+  }
+}
+
+async function loadPosts() {
+  const container = document.getElementById('posts-container');
+  try {
+    const posts = await apiFetch(`/posts?userId=${profileId}`);
+    if (posts.length === 0) {
+      container.innerHTML = '<p class="empty-state">No posts yet.</p>';
+      return;
+    }
+    container.innerHTML = posts.map(postCardHTML).join('');
+  } catch (err) {
+    container.innerHTML = `<p class="error-msg">${err.message}</p>`;
+  }
+}
+
+loadProfile();
+loadPosts();
+</script>
+</body>
+</html>
